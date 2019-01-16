@@ -10,7 +10,7 @@ from sympy.functions import Abs
 import sympy
 from fractions import Fraction
 
-bs = [Fraction(1, 2),
+[Fraction(1, 2),
  Fraction(1, 6),
  Fraction(1, 3),
  Fraction(1, 5),
@@ -30,9 +30,11 @@ bs = [Fraction(1, 2),
  Fraction(9, 38),
  Fraction(5, 19),
  Fraction(5, 21),
- Fraction(11, 42)]
-
-ris = [1,
+ Fraction(11, 42),
+ Fraction(11, 46),
+ Fraction(6, 23),
+ Fraction(6, 25)]
+[1,
  2,
  12,
  36,
@@ -53,7 +55,10 @@ ris = [1,
  44914183600,
  170673897680,
  716830370256,
- 2736988686432]
+ 2736988686432,
+ 11445589052352,
+ 43874758034016,
+ 182811491808400]
 
 def GC1_p(i, M):
     """ The points for the Gauss-Chebyshev quadrature can be computed
