@@ -8,6 +8,52 @@ from itertools import product
 import sympy.abc as sym
 from sympy.functions import Abs
 import sympy
+from fractions import Fraction
+
+bs = [Fraction(1, 2),
+ Fraction(1, 6),
+ Fraction(1, 3),
+ Fraction(1, 5),
+ Fraction(3, 10),
+ Fraction(3, 14),
+ Fraction(2, 7),
+ Fraction(2, 9),
+ Fraction(5, 18),
+ Fraction(5, 22),
+ Fraction(3, 11),
+ Fraction(3, 13),
+ Fraction(7, 26),
+ Fraction(7, 30),
+ Fraction(4, 15),
+ Fraction(4, 17),
+ Fraction(9, 34),
+ Fraction(9, 38),
+ Fraction(5, 19),
+ Fraction(5, 21),
+ Fraction(11, 42)]
+
+ris = [1,
+ 2,
+ 12,
+ 36,
+ 180,
+ 600,
+ 2800,
+ 9800,
+ 44100,
+ 158760,
+ 698544,
+ 2561328,
+ 11099088,
+ 41225184,
+ 176679360,
+ 662547600,
+ 2815827300,
+ 10637569800,
+ 44914183600,
+ 170673897680,
+ 716830370256,
+ 2736988686432]
 
 def GC1_p(i, M):
     """ The points for the Gauss-Chebyshev quadrature can be computed
@@ -157,6 +203,7 @@ def p_np1(p_nm1, p_n, b):
         more quickly.  May want to remove it.
     """
     return sympy.expand( sym.x * p_n - b * p_nm1)
+    #return sym.x * p_n - b * p_nm1
 
 def get_recip_normsq(p_n):
     """ Return the reciprocal of the square of the norm (weighted by |r|)
@@ -196,7 +243,7 @@ def get_bs_and_ps(n):
         if err < 1.0e-5:
             newri = newrir
         ris.append(newri)
-        b = ri/newri
+        b = Fraction(ri,newri)
         bs.append(b)
         ps.append(p_np1(*ps[-2:], b))
         i += 1
