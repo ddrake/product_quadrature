@@ -2,7 +2,7 @@
 # how an integral can be computed on a disk using the product formula
 
 import numpy as np
-from scipy.linalg import eig
+from scipy.linalg import eigh_tridiagonal
 from itertools import product
 
 
@@ -133,8 +133,8 @@ def to_cartesian(r, t, R):
     """
     return R*r*np.sqrt(1-t*t), R*r*t
 
-
-def get_points(M, R):
+# Use precomputed points and weights
+def get_points(M, R=1):
     pts = [(GL_p(i, M), GC1_p(i, M)) for i in range(1, M+1)]
     return [to_cartesian(r, t, R) for r, t in product(*zip(*pts))]
 
@@ -142,6 +142,19 @@ def get_points(M, R):
 def get_weights(M):
     wts = [(GL_w(i, M), GC1_w(i, M)) for i in range(1, M+1)]
     return [w1*w2 for w1, w2 in product(*zip(*wts))]
+
+# Compute directly points and weights
+def get_points1(M, R=1):
+    rs, _ = rs_ts(M)
+    pts = [(rs[i-1], GC1_p(i, M)) for i in range(1, M+1)]
+    return [to_cartesian(r, t, R) for r, t in product(*zip(*pts))]
+
+
+def get_weights1(M):
+    _, ts = rs_ts(M)
+    wts = [(ts[i-1], GC1_w(i, M)) for i in range(1, M+1)]
+    return [w1*w2 for w1, w2 in product(*zip(*wts))]
+
 
 # -------------------------------------------
 # functions for finding r points and weights
@@ -160,15 +173,12 @@ def get_bs(n):
     b = []
     if n <= 0:
         return b
-    q, r = divmod(n, 2)
-    for i in range(q):
-        b.append((i+1)/(4*i+2))
-        b.append((i+1)/(4*i+6))
-    if r:
-        i = q
-        b.append((i+1)/(4*i+2))
+    for i in range(1,n+1):
+        if i % 2 == 1:
+            b.append( (i+1)/4/i )
+        else:
+            b.append( i/4/(i+1) )
     return b
-
 
 def jacobi(b):
     """ Construct the Golub-Welsh jacobi matrix for coefficients b
@@ -179,15 +189,15 @@ def jacobi(b):
     b = np.sqrt(np.array(b))
     return np.zeros((n+1, n+1)) + np.diag(b, -1) + np.diag(b, 1)
 
-
 def rs_ts(n):
-    """ Given the Golub-Welsh jacobi matrix, return the
-        r points (eigenvalues) and corresponding weights 
+    """ Given n, the number of 1D radii, return the 
+        n points (eigenvalues) and corresponding weights 
         (first terms of normalized eigenvectors)
+        of the Golub-Welsh Jacobi matrix. 
         These should match the values hard coded in GL_p and GL_w
     """
-    ew, ev = eig(jacobi(get_bs(n-1)))
-    return ew, ev[0, :]**2
+    ew, ev = eigh_tridiagonal(np.zeros(n), np.sqrt(get_bs(n-1)))
+    return np.real(ew), ev[0, :]**2
 
 # ---------------
 # test functions
@@ -221,7 +231,16 @@ def f6(x, y):
 def integrate(f, M, R=1.0):
     """ M-degree Gaussian Product Approximation to integral of f on the 
         disk centered at the origin with radius R
+        seems to be accurate to about 16 decimal places
     """
     pts = get_points(M, R)
     wts = get_weights(M)
+    return R*R*sum((f(*pt)*wt) for pt, wt in zip(pts, wts))
+
+def integrate1(f, M, R=1.0):
+    """ Same as integrate but computing points and weights instead of 
+        using pre-computed values.  Seems to be accurate to about 15 decimals
+    """
+    pts = get_points1(M, R)
+    wts = get_weights1(M)
     return R*R*sum((f(*pt)*wt) for pt, wt in zip(pts, wts))
