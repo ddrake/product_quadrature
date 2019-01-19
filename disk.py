@@ -4,20 +4,22 @@
 import numpy as np
 from scipy.linalg import eigh_tridiagonal
 from itertools import product
+from mpmath import mp
 
+mp.dps = 50
 
 def GC1_p(i, M):
     """ The points for the Gauss-Chebyshev quadrature can be computed
         directly.  These are the t values in (-1, 1) where t = sin(theta)
         for theta in [-pi/2, pi/2]
     """
-    return np.cos((2*i - 1)/2/M * np.pi)
+    return mp.chop(mp.cos(mp.pi * (2*i - 1)/2/M),tol=1.0e-30)
 
 
 def GC1_w(i, M):
     """ i is included for consistency (not efficient)
     """
-    return np.pi / M
+    return mp.chop(mp.pi / M,tol=1.0e-30)
 
 
 def GL_p(i, M):
@@ -131,7 +133,7 @@ def to_cartesian(r, t, R):
     """ convert from polar to Cartesian coordinates, scaling by the
         disk radius
     """
-    return R*r*np.sqrt(1-t*t), R*r*t
+    return mp.sqrt(1-t*t)*R*r, mp.mpc(R)*r*t
 
 # Use precomputed points and weights
 def get_points(M, R=1):
@@ -142,19 +144,6 @@ def get_points(M, R=1):
 def get_weights(M):
     wts = [(GL_w(i, M), GC1_w(i, M)) for i in range(1, M+1)]
     return [w1*w2 for w1, w2 in product(*zip(*wts))]
-
-# Compute directly points and weights
-def get_points1(M, R=1):
-    rs, _ = rs_ts(M)
-    pts = [(rs[i-1], GC1_p(i, M)) for i in range(1, M+1)]
-    return [to_cartesian(r, t, R) for r, t in product(*zip(*pts))]
-
-
-def get_weights1(M):
-    _, ts = rs_ts(M)
-    wts = [(ts[i-1], GC1_w(i, M)) for i in range(1, M+1)]
-    return [w1*w2 for w1, w2 in product(*zip(*wts))]
-
 
 # -------------------------------------------
 # functions for finding r points and weights
@@ -175,19 +164,21 @@ def get_bs(n):
         return b
     for i in range(1,n+1):
         if i % 2 == 1:
-            b.append( (i+1)/4/i )
+            b.append( (mp.mpf(i)+1)/4/i )
         else:
-            b.append( i/4/(i+1) )
+            b.append( mp.mpf(i)/4/(i+1) )
     return b
 
-def jacobi(b):
+def jacobi(n):
     """ Construct the Golub-Welsh jacobi matrix for coefficients b
         for the disk integral.  In this case, the diagonal entries
         (a values) will always be zero.
     """
-    n = len(b)
-    b = np.sqrt(np.array(b))
-    return np.zeros((n+1, n+1)) + np.diag(b, -1) + np.diag(b, 1)
+    b = [mp.sqrt(b) for b in get_bs(n-1)]
+    j = mp.zeros(n)
+    j[1:,:-1] += mp.diag(b)
+    j[:-1,1:] += mp.diag(b)
+    return j
 
 def rs_ts(n):
     """ Given n, the number of 1D radii, return the 
@@ -196,8 +187,47 @@ def rs_ts(n):
         of the Golub-Welsh Jacobi matrix. 
         These should match the values hard coded in GL_p and GL_w
     """
-    ew, ev = eigh_tridiagonal(np.zeros(n), np.sqrt(get_bs(n-1)))
-    return np.real(ew), ev[0, :]**2
+    ew, ev = mp.eigsy(jacobi(n))
+    return [mp.chop(e, tol=1e-30) for e in ew], [mp.chop(c*c,tol=1.0e-30) for c in ev[0, :]]
+
+# Compute directly points and weights
+def get_points1(M, R=1):
+    rs, _ = rs_ts(M)
+    pts = [(rs[i-1], GC1_p(i, M)) for i in range(1, M+1)]
+    return [to_cartesian(r, t, R) for r, t in product(*zip(*pts))]
+
+
+def get_weights1(M):
+    _, ts = rs_ts(M)
+    wts = [(ts[i-1], GC1_w(i, M)) for i in range(1, M+1)]
+    return [w1*w2 for w1, w2 in product(*zip(*wts))]
+
+def rdjust(num):
+    """ Ensure that each number has exactly 26 significant digits
+        try to make pretty, given that constraint
+    """
+    tmp = mp.nstr(num,26)
+    tmp += '0'*(27 - len(tmp) + tmp.index('.'))
+    return tmp.rjust(29)
+
+def generate_for(n):
+    """ Generates the initial data for the C++ structs in the fiberamp project
+    """
+    rs, wts = rs_ts(n)
+    tt = [GC1_p(i, n) for i in range(1,n+1)]
+    qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
+    print('disk_pars[%d] = { %s,' % (n, rdjust(mp.pi / n)))
+    print('  {')
+    for i in range(n-1):
+        print('   { %s, %s, %s, %s },' % (rdjust(rs[i]), rdjust(tt[i]), rdjust(qq[i]), rdjust(wts[i])))
+    print('   { %s, %s, %s, %s }' % (rdjust(rs[n-1]), rdjust(tt[n-1]), rdjust(qq[n-1]), rdjust(wts[n-1])))
+    print('  }')
+    print('};')
+
+def generate(to_m):
+    for i in range(1,to_m+1):
+        generate_for(i)
+
 
 # ---------------
 # test functions
@@ -225,7 +255,7 @@ def f5(x, y):
 
 
 def f6(x, y):
-    return np.exp((x-.1)*np.sin(y-.2))
+    return mp.exp((x-.1)*mp.sin(y-.2))
 
 
 def integrate(f, M, R=1.0):
