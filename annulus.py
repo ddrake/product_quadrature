@@ -163,6 +163,15 @@ def f4(x,y):
 def f5(x,y):
     return 1
 
+def f6(x,y):
+    return x*x
+
+def f7(x,y):
+    return y
+
+def f8(x,y):
+    return y*y
+
 def integrate(f, n, r1, r2):
     a, b, *rest = get_coeffs(n, r1, r2)
     J = jacobi(a, b, n)
