@@ -107,19 +107,20 @@ def plot_for(a, b, n, r1, r2):
     r = rs(rhos, r1, r2)
     tt = [GC1_p(i, n) for i in range(1,n+1)]
     qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
-    cart1 = [(r[i]*qq[j], r[i]*tt[j]) for i,j in product(range(n), range(n))]
-    cart2 = [(-r[i]*qq[j],-r[i]*tt[j]) for i,j in product(range(n), range(n))]
-    cart = cart1+cart2
-    x,y = zip(*cart)
+    polar1 = [(mp.asin(tt[j]), r[i]) for i,j in product(range(n), range(n))]
+    polar2 = [(mp.asin(tt[j])+mp.pi, r[i]) for i,j in product(range(n), range(n))]
+    polar = polar1+polar2
+    thetapts,rpts = zip(*polar)
+    r = np.ones(100)
     th = np.linspace(0,2*np.pi,100)
-    xout, yout = r2*np.cos(th), r2*np.sin(th)
-    xin, yin = r1*np.cos(th), r1*np.sin(th)
 
-    plt.axis('equal')
-    plt.plot(xin,yin)
-    plt.plot(xout,yout)
-    plt.axis([-r2*1.2, r2*1.2, -r2*1.2, r2*1.2])
-    plt.plot(x,y, 'ro')
+    ax = plt.subplot(111, projection='polar')
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    plt.plot(th, r1*r)
+    plt.plot(th, r2*r)
+    plt.plot(thetapts, rpts, 'ro')
+    plt.title("Annular quadrature points for n={}, r1={}, r2={}".format(n,r1,r2))
     plt.show()
 
 def generate_for(a, b, n, r1, r2):
@@ -181,6 +182,8 @@ def integrate(f, n, r1, r2):
     qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
 
     cwt = mp.pi / n
+    c = (r2+r1)/(r2-r1) 
+    gamma = (r2-r1)/2
     result = 0
     for i in range(n):
         for j in range(n):
@@ -192,30 +195,6 @@ def integrate(f, n, r1, r2):
             print('wt',wt[i],'cwt',cwt)
             result += wt[i]*cwt*f(r[i]*qq[j], r[i]*tt[j]) \
                     + wt[i]*cwt*f(-r[i]*qq[j], -r[i]*tt[j])
-    return result * (r2-r1) * (r2-r1) / 4
-
-
-def g1(r):
-    return 1
-
-def g2(r):
-    return r
-
-def g3(r):
-    return r*r
-
-def integrate1d(g, n, r1, r2):
-    a, b, *rest = get_coeffs(n, r1, r2)
-    J = jacobi(a, b, n)
-    rho, wt = rhos_wts(J)
-    r = rs(rho, r1, r2)
-    result = 0
-    for i in range(n):
-        for j in range(n):
-            print('r', r[i])
-            print('g(r)', g(r[i]))
-            print('wt',wt[i])
-            result += wt[i]*g(r[i])
-    return result * (r2-r1) * (r2-r1) / 4
-
+    # magic correction factor 2c seems to give correct results in all cases
+    return result * gamma * gamma * (2*c)
 

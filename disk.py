@@ -5,6 +5,7 @@ import numpy as np
 from scipy.linalg import eigh_tridiagonal
 from itertools import product
 from mpmath import mp
+from matplotlib import pyplot as plt
 
 mp.dps = 50
 
@@ -209,6 +210,26 @@ def rdjust(num):
     tmp = mp.nstr(num,26)
     tmp += '0'*(27 - len(tmp) + tmp.index('.'))
     return tmp.rjust(29)
+
+def plot_for(M):
+    """ Plot the integration points 
+    """
+    rs, _ = rs_ts(M)
+    tt = [GC1_p(i, M) for i in range(1, M+1)]
+    polar = [(mp.asin(tt[j]), rs[i]) for i,j in product(range(M), range(M))]
+    # work around the fact that matplotlib can't handle negative r values
+    polar = [(theta,r) if r>=0 else (theta+mp.pi,-r) for theta, r in polar]
+    thetapts,rpts = zip(*polar)
+    r = np.ones(100)
+    th = np.linspace(0,2*np.pi,100)
+
+    ax = plt.subplot(111, projection='polar')
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    plt.plot(th, r)
+    plt.plot(thetapts, rpts, 'ro')
+    plt.title("Unit Disk points for n={}".format(M))
+    plt.show()
 
 def generate_for(n):
     """ Generates the initial data for the C++ structs in the fiberamp project
