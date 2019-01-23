@@ -230,9 +230,11 @@ int main()
     cout << "pt.r = " << pt.r << ", pt.q = " << pt.q << endl;
 
   cout << "integral of x^2 y^2 on the unit circle (exact) = " << gauss_int(f1, 3) << endl;
+  cout << "integral of x^2 y^4 on circle r=1.0  (exact) = " << gauss_int(f2, 6) << endl;
   cout << "integral of x^2 y^4 on circle r=1.25e-5  (exact) = " << gauss_int(f2, 6, 1.25e-5) << endl;
   cout << "improved version" << endl;
   cout << "integral of x^2 y^2 on the unit circle (exact) = " << gauss_int1(f1, 3) << endl;
+  cout << "integral of x^2 y^4 on circle r=1.0  (exact) = " << gauss_int1(f2, 6) << endl;
   cout << "integral of x^2 y^4 on circle r=1.25e-5  (exact) = " << gauss_int1(f2, 6, 1.25e-5) << endl;
   vector<double> x;
   vector<double> y;

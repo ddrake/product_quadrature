@@ -278,6 +278,8 @@ def f5(x, y):
 def f6(x, y):
     return mp.exp((x-.1)*mp.sin(y-.2))
 
+def f7(x, y):
+    return x*x*y*y*y*y
 
 def integrate(f, M, R=1.0):
     """ M-degree Gaussian Product Approximation to integral of f on the 
