@@ -7,7 +7,7 @@
 """
 import sympy as sym
 from sympy.abc import x
-from mpmath import *
+from mpmath import mp, mpf 
 from matplotlib import pyplot as plt
 import numpy as np
 from itertools import product
@@ -49,6 +49,7 @@ def get_coeffs(n, r1=0, r2=1):
     xpp = []                 # (xp,p) inner products
     p = [mpf(1)]             # p₀ = 1
     w = c + x                # weight (Jacobian) >= 0 for x in [-1,1]
+    mu_0 = sym.integrate(w,(x,mpf(-1),mpf(1)))
 
     xpp.append(sym.integrate(w*x*p[-1]*p[-1], (x, mpf(-1), mpf(1))))
     pp.append(sym.integrate(w*p[-1]*p[-1], (x, mpf(-1), mpf(1))))
@@ -60,7 +61,7 @@ def get_coeffs(n, r1=0, r2=1):
         a.append(xpp[-1]/pp[-1])
         b.append(pp[-1]/pp[-2])
         p.append(sym.expand((x-a[-1])*p[-1]-b[-1]*p[-2]))
-    return a, b, p, pp, xpp
+    return a, b, mu_0, p, pp, xpp
 
 
 def jacobi(a, b, n):
@@ -77,7 +78,7 @@ def jacobi(a, b, n):
     return j
 
 
-def rhos_wts(jacobi):
+def rhos_wts(jacobi, mu_0):
     """ Given a jacobi matrix, return the 
         n points (eigenvalues) and corresponding weights 
         (first terms of normalized eigenvectors)
@@ -85,7 +86,7 @@ def rhos_wts(jacobi):
     """
     ew, ev = mp.eigsy(jacobi)
     rhos = [mp.chop(e, tol=1e-30) for e in ew]
-    wts = [mp.chop(c*c, tol=1.0e-30) for c in ev[0, :]]
+    wts = [mp.chop(mu_0*c*c, tol=1.0e-30) for c in ev[0, :]]
     return rhos, wts
 
 
@@ -106,11 +107,12 @@ def rdjust(num):
     return tmp.rjust(29)
 
 
-def plot_for(a, b, n, r1, r2):
+def plot(n, r1, r2):
     """ Plot the integration points 
     """
+    a,b,mu_0,*rest = get_coeffs(n,r1,r2)
     J = jacobi(a, b, n)
-    rhos, wts = rhos_wts(J)
+    rhos, _ = rhos_wts(J, mu_0)
     r = rs(rhos, r1, r2)
     tt = [GC1_p(i, n) for i in range(1, n+1)]
     qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
@@ -132,13 +134,12 @@ def plot_for(a, b, n, r1, r2):
     plt.show()
 
 
-def generate_for(a, b, n, r1, r2):
-    """ Generates the initial data for the C++ structs in the fiberamp project
+def generate_for(a, b, mu_0, n):
+    """ Generates the initial data block for one polynomial degree
         Note that this intentionally stores rho values (not converted to r)
     """
     J = jacobi(a, b, n)
-    rhos, wts = rhos_wts(J)
-    wts += wts[:]
+    rhos, wts = rhos_wts(J, mu_0)
     tt = [GC1_p(i, n) for i in range(1, n+1)]
     qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
     print('disk_pars[%d] = { %s,' % (n, rdjust(mp.pi / n)))
@@ -153,11 +154,17 @@ def generate_for(a, b, n, r1, r2):
 
 
 def generate(to_m, r1, r2):
-    a, b, *extras = get_coeffs(to_m, r1, r2)
+    """ Generates the initial data used in AnnulusGaussQuad in the 
+        fiberamp project
+    """
+    a, b, mu_0, *extras = get_coeffs(to_m, r1, r2)
     for i in range(1, to_m+1):
-        generate_for(a, b, i, r1, r2)
+        generate_for(a, b, mu_0, i)
 
 
+# ---------------
+# test functions
+# ---------------
 def f1(x, y):
     return x*x*y*y
 
@@ -194,13 +201,15 @@ def f9(x, y):
     return x*x*y*y*y*y
 
 
-def integrate1(f, n, r1, r2):
-    # scale r1 and r2 so that r2 == 1 to be consistent with the c++ code.
-    a, b, *rest = get_coeffs(n, r1/r2, 1)
+def integrate(f, n, r1, r2):
+    """ Integrate the given function with the specified
+        polynomial degree and radii
+    """
+    a, b, mu_0, *rest = get_coeffs(n, r1, r2)
     c = (r2+r1)/(r2-r1)
     gamma = (r2-r1)/2
     J = jacobi(a, b, n)
-    rho, wt = rhos_wts(J)
+    rho, wt = rhos_wts(J, mu_0)
     r = [gamma*(rh+c) for rh in rho]
     tt = [GC1_p(i, n) for i in range(1, n+1)]
     qq = [mp.sqrt(mp.mpf(1)-t*t) for t in tt]
@@ -211,5 +220,4 @@ def integrate1(f, n, r1, r2):
         for j in range(n):
             result += wt[i]*cwt*f(r[i]*qq[j], r[i]*tt[j]) \
                 + wt[i]*cwt*f(-r[i]*qq[j], -r[i]*tt[j])
-    # magic correction factor 2c seems to give correct results in all cases
-    return result * gamma * gamma * (2*c)
+    return result * gamma * gamma
